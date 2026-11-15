@@ -51,8 +51,8 @@
   "devDependencies": {
     "@types/node": "^22.19.15",
     "esbuild": "^0.25.0",
+    "openclaw": "^2026.11.3",
     "shx": "^0.3.4",
-    "openclaw": "*",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
