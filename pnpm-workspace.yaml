@@ -17,8 +17,10 @@ onlyBuiltDependencies:
   - sharp
   - workerd
 allowBuilds:
+  '@google/genai': false
   esbuild: true
   koffi: true
+  openclaw: false
   protobufjs: true
   sharp: true
   workerd: true
