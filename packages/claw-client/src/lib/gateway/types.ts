@@ -100,6 +100,12 @@ export interface ConnectParams {
     mode?: GatewayClientMode;
     displayName?: string;
     instanceId?: string;
+    /**
+     * Gateway build this UI was matched against. OpenClaw >= 2026.11 rejects
+     * `openclaw-control-ui` clients whose buildId differs from the gateway's
+     * (`serverBuildId` in /control-ui-config.json).
+     */
+    buildId?: string;
   };
   role?: string;
   scopes?: string[];

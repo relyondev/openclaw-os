@@ -40,6 +40,42 @@ function buildV3Payload(
   ].join("|");
 }
 
+let cachedBuildId: { gatewayUrl: string; buildId: string | undefined } | null = null;
+
+/**
+ * Reads the gateway's build id from its HTTP `control-ui-config.json`, served
+ * next to the WebSocket. Newer gateways refuse Control UI clients that don't
+ * report a matching build. Returns undefined when unavailable (older gateways
+ * don't check, so connecting without it still works there).
+ */
+async function resolveGatewayBuildId(gatewayUrl: string): Promise<string | undefined> {
+  if (cachedBuildId?.gatewayUrl === gatewayUrl) return cachedBuildId.buildId;
+  let buildId: string | undefined;
+  try {
+    const url = new URL(gatewayUrl);
+    url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}/control-ui-config.json`;
+    url.search = "";
+    url.hash = "";
+    const res = await fetch(url.toString(), { credentials: "include", cache: "no-store" });
+    if (res.ok) {
+      const config = (await res.json()) as { serverBuildId?: unknown };
+      if (typeof config.serverBuildId === "string" && config.serverBuildId.trim()) {
+        buildId = config.serverBuildId.trim();
+      }
+    }
+  } catch {
+    // Older gateway, cross-origin without CORS, or offline: connect without it.
+  }
+  cachedBuildId = { gatewayUrl, buildId };
+  return buildId;
+}
+
+/** Drops the cached build id so the next connect re-reads it (e.g. after a gateway upgrade). */
+export function resetGatewayBuildId(): void {
+  cachedBuildId = null;
+}
+
 export async function buildConnectParams(
   nonce: string,
   settings: Settings,
@@ -49,6 +85,7 @@ export async function buildConnectParams(
   const token = settings.deviceToken ?? settings.token ?? "";
   const payload = buildV3Payload(device.deviceId, CLIENT_MODE, signedAtMs, token, nonce);
   const signatureBytes = await signMessage(payload, device.privateKey);
+  const buildId = await resolveGatewayBuildId(settings.gatewayUrl);
 
   return {
     minProtocol: PROTOCOL_VERSION,
@@ -59,6 +96,7 @@ export async function buildConnectParams(
       version: CLIENT_VERSION,
       platform: "web",
       mode: CLIENT_MODE,
+      ...(buildId ? { buildId } : {}),
     },
     role: ROLE,
     scopes: SCOPES,

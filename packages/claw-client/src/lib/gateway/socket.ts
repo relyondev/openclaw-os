@@ -1,6 +1,6 @@
 import type { Settings } from "../storage";
 import type { DeviceIdentity } from "./device-identity";
-import { buildConnectParams } from "./handshake";
+import { buildConnectParams, resetGatewayBuildId } from "./handshake";
 import type { EventFrame, GatewayError, GatewayFrame, HelloOk } from "./types";
 
 // WebSocket close codes that indicate non-retryable auth failures
@@ -287,6 +287,14 @@ export class GatewaySocket {
     // subsequent auth-close as a fatal auth failure — just let reconnect run.
     if (this.pairingDetected) {
       warn("close after pairing detection — ignoring auth close code");
+      return;
+    }
+
+    // Gateway was upgraded since we read its build id: re-read and retry
+    // instead of treating the 1008 close as an auth failure.
+    if (/control ui updated/i.test(reason)) {
+      resetGatewayBuildId();
+      this.scheduleReconnect();
       return;
     }
 
